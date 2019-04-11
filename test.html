@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        
+        request('http://127.0.0.1:3000/moby-dick.epub')
+
+        function request(url, type, withCredentials, headers) {
+
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = handler;
+            xhr.onerror = err;
+
+            xhr.open("GET", url, true);
+            // xhr.responseType = "arraybuffer";
+            xhr.send();
+
+            function err(e) {
+                deferred.reject(e);
+            }
+
+            function handler() {
+                if (this.readyState === XMLHttpRequest.DONE) {
+                    var responseXML = false;
+
+                    if (this.responseType === "" || this.responseType === "document") {
+                        responseXML = this.responseXML;
+                    }
+
+                    if (this.status === 200 || responseXML) {
+                        //-- Firefox is reporting 0 for blob urls
+                        var r;
+
+                        if (!this.response && !responseXML) {
+                            deferred.reject({
+                                status: this.status,
+                                message: "Empty Response",
+                                stack: new Error().stack
+                            });
+                            return deferred.promise;
+                        }
+
+                        if (this.status === 403) {
+                            deferred.reject({
+                                status: this.status,
+                                response: this.response,
+                                message: "Forbidden",
+                                stack: new Error().stack
+                            });
+                            return deferred.promise;
+                        }
+                        if (responseXML) {
+                            r = this.responseXML;
+                        } else if ((0, _core.isXml)(type)) {
+                            // xhr.overrideMimeType("text/xml"); // for OPF parsing
+                            // If this.responseXML wasn't set, try to parse using a DOMParser from text
+                            r = (0, _core.parse)(this.response, "text/xml");
+                        } else if (type == "xhtml") {
+                            r = (0, _core.parse)(this.response, "application/xhtml+xml");
+                        } else if (type == "html" || type == "htm") {
+                            r = (0, _core.parse)(this.response, "text/html");
+                        } else if (type == "json") {
+                            r = JSON.parse(this.response);
+                        } else if (type == "blob") {
+
+                            if (supportsURL) {
+                                r = this.response;
+                            } else {
+                                //-- Safari doesn't support responseType blob, so create a blob from arraybuffer
+                                r = new Blob([this.response]);
+                            }
+                        } else {
+                            r = this.response;
+                        }
+
+                        deferred.resolve(r);
+                    } else {
+
+                        deferred.reject({
+                            status: this.status,
+                            message: this.response,
+                            stack: new Error().stack
+                        });
+                    }
+                }
+            }
+
+            return deferred.promise;
+        }
+    </script>
+</body>
+
+</html>
